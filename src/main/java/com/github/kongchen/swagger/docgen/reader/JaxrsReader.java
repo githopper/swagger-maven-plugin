@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import javax.ws.rs.ApplicationPath;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.DELETE;
 import javax.ws.rs.GET;
@@ -90,6 +91,7 @@ public class JaxrsReader extends AbstractReader implements ClassSwaggerReader {
             swagger = new Swagger();
         }
         Api api = AnnotationUtils.findAnnotation(cls, Api.class);
+        ApplicationPath apiApplicationPath = AnnotationUtils.findAnnotation(cls, ApplicationPath.class);
         Path apiPath = AnnotationUtils.findAnnotation(cls, Path.class);
 
         // only read if allowing hidden apis OR api is not marked as hidden
@@ -134,7 +136,7 @@ public class JaxrsReader extends AbstractReader implements ClassSwaggerReader {
                 methodPath = path;
                 parentPathValue = null;
             }
-            String operationPath = getPath(apiPath, methodPath, parentPathValue);
+            String operationPath = getPath(apiApplicationPath, apiPath, methodPath, parentPathValue);
             if (operationPath != null) {
                 Map<String, String> regexMap = new HashMap<String, String>();
                 operationPath = parseOperationPath(operationPath, regexMap);
@@ -225,8 +227,8 @@ public class JaxrsReader extends AbstractReader implements ClassSwaggerReader {
         return (responseClass != null) && (httpMethod == null) && (AnnotationUtils.findAnnotation(method, Path.class) != null);
     }
 
-    private String getPath(Path classLevelPath, Path methodLevelPath, String parentPath) {
-        if (classLevelPath == null && methodLevelPath == null) {
+    private String getPath(ApplicationPath classLevelApplicationPath, Path classLevelPath, Path methodLevelPath, String parentPath) {
+        if (classLevelApplicationPath == null && classLevelPath == null && methodLevelPath == null) {
             return null;
         }
         StringBuilder stringBuilder = new StringBuilder();
@@ -240,8 +242,25 @@ public class JaxrsReader extends AbstractReader implements ClassSwaggerReader {
 
             stringBuilder.append(parentPath);
         }
+        if (classLevelApplicationPath != null && !classLevelApplicationPath.value().equals("/")) {
+            String classApplicationPath = classLevelApplicationPath.value();
+            if (!classApplicationPath.startsWith("/") && !stringBuilder.toString().endsWith("/")) {
+                stringBuilder.append("/");
+            }
+            if (classApplicationPath.endsWith("/")) {
+                classApplicationPath = classApplicationPath.substring(0, classApplicationPath.length() - 1);
+            }
+            stringBuilder.append(classApplicationPath);
+        }
         if (classLevelPath != null) {
-            stringBuilder.append(classLevelPath.value());
+            String classPath = classLevelPath.value();
+            if (!classPath.startsWith("/") && !stringBuilder.toString().endsWith("/")) {
+                stringBuilder.append("/");
+            }
+            if (classPath.endsWith("/")) {
+                classPath = classPath.substring(0, classPath.length() - 1);
+            }
+            stringBuilder.append(classPath);
         }
         if (methodLevelPath != null && !methodLevelPath.value().equals("/")) {
             String methodPath = methodLevelPath.value();
